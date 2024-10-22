@@ -14,7 +14,7 @@ A RESTful API for accessing air quality data, focused on PM2.5 levels from the G
 
 ## Running the API Locally
 1. Clone the repository:
-   git clone https://github.com/YOUR_USERNAME/air-quality-api.git
+   git clone https://github.com/soni-aayushi/air-quality-api.git
    cd air-quality-api
    
 ## Install dependencies
