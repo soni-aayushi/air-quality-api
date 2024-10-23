@@ -1,40 +1,53 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
 import pandas as pd
 from typing import Optional
+from models.air_quality_model import AirQualityEntry  
 
 app = FastAPI()
 
-df = pd.read_csv("PM25_dataset.csv")
+df = pd.read_csv("database/PM25_dataset.csv")
 print(df.head())
 
 if df.isnull().values.any():
     print("Warning: Data contains missing values.")
-    df.fillna(0, inplace=True)  
-
-class AirQualityEntry(BaseModel):
-    Year: int
-    Latitude: float
-    Longitude: float
-    PM25: float
+    df.fillna(0, inplace=True)
 
 @app.get("/data")
 def get_all_data():
-    return df.to_dict(orient="records")
+    try:
+        if df.empty:
+            raise HTTPException(status_code=500, detail="DataFrame is empty or not loaded")
+        
+        data = df.to_dict(orient="records")
+        print(data)  
+        return data
+    except Exception as e:
+        print("Error while getting all data:", e)
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
 
 @app.get("/data/{id}")
 def get_data_by_id(id: int):
-    if id < 0 or id >= len(df):
-        raise HTTPException(status_code=404, detail="Data entry not found")
-    
-    entry = df.iloc[id]
-    return entry.to_dict() 
+    try:
+        if id < 0 or id >= len(df):
+            raise HTTPException(status_code=404, detail="Data entry not found")
+        
+        entry = df.iloc[id]
+        print(f"Fetching entry at index {id}: {entry}")
+        return entry.to_dict()
+    except Exception as e:
+        print(f"Error occurred while fetching data by id: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+ 
 
 @app.post("/data")
 def add_data(entry: AirQualityEntry):
     new_data = pd.DataFrame([entry.dict()]) 
     global df 
     df = pd.concat([df, new_data], ignore_index=True)  
+    
+    df.to_csv("database/PM25_dataset.csv", index=False)  
+    
     return {"message": "Data added successfully"}  
 
 @app.put("/data/{id}")
@@ -60,7 +73,6 @@ def filter_data(
     lat: Optional[float] = None, 
     long: Optional[float] = None
 ):
-    """Filter data based on specified criteria."""
     filtered_df = df.copy()  
     
     if year is not None:
@@ -77,11 +89,10 @@ def filter_data(
 
 @app.get("/data/stats")
 def get_stats():
-    """Provide basic statistics about the air quality data."""
     stats = {
         "count": len(df),  
-        "average_pm25": df["PM2.5"].mean(), 
-        "min_pm25": df["PM2.5"].min(),  
-        "max_pm25": df["PM2.5"].max(), 
+        "average_pm25": df["PM25"].mean(),
+        "min_pm25": df["PM25"].min(),  
+        "max_pm25": df["PM25"].max(), 
     }
     return stats 
